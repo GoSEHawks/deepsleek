@@ -1,5 +1,6 @@
 import os
 import streamlit as st
+import transformers
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -199,8 +200,8 @@ st.markdown(
 # ── Load / cache the pipeline ─────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_pipeline(model_id: str):
-    from transformers import pipeline
-    return pipeline("text-generation", model=model_id)
+    import transformers
+    return transformers.pipeline("text-generation", model=model_id)
 
 
 # Bust the cache only when the model ID actually changes
