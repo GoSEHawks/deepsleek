@@ -116,12 +116,7 @@ h1 {
 
 
 # ── Secrets gate — runs before anything else ──────────────────────────────────
-try:
-    hf_token = st.secrets["HF_TOKEN"]
-except (KeyError, FileNotFoundError):
-    hf_token = os.environ.get("HF_TOKEN", "")
-
-if not hf_token:
+if "HF_TOKEN" not in st.secrets:
     st.error(
         "**HF_TOKEN is not set.**\n\n"
         "You must add your HuggingFace token as a Streamlit secret before using this app:\n\n"
@@ -134,6 +129,8 @@ if not hf_token:
         icon="🔑",
     )
     st.stop()
+
+hf_token = st.secrets["HF_TOKEN"]
 
 # Log in to HuggingFace Hub globally so ALL downloads are authenticated.
 # This is the most reliable way — it sets the token at the huggingface_hub
