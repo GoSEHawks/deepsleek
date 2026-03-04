@@ -1,6 +1,5 @@
 import os
 import streamlit as st
-from threading import Thread
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -116,14 +115,40 @@ h1 {
 """, unsafe_allow_html=True)
 
 
+# ── Secrets gate — runs before anything else ──────────────────────────────────
+try:
+    hf_token = st.secrets["HF_TOKEN"]
+except (KeyError, FileNotFoundError):
+    hf_token = os.environ.get("HF_TOKEN", "")
+
+if not hf_token:
+    st.error(
+        "**HF_TOKEN is not set.**\n\n"
+        "You must add your HuggingFace token as a Streamlit secret before using this app:\n\n"
+        "1. Go to your app's **Settings → Secrets** in Streamlit Cloud, "
+        "or create `.streamlit/secrets.toml` locally\n"
+        "2. Add the line:\n"
+        "```toml\nHF_TOKEN = \"hf_your_token_here\"\n```\n"
+        "3. Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)\n\n"
+        "Then restart the app.",
+        icon="🔑",
+    )
+    st.stop()
+
+# Log in to HuggingFace Hub globally so ALL downloads are authenticated.
+# This is the most reliable way — it sets the token at the huggingface_hub
+# level rather than relying on it being threaded through every API call.
+from huggingface_hub import login as hf_login
+hf_login(token=hf_token, add_to_git_credential=False)
+
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## ⚙ Settings")
 
     st.markdown("**Model ID**")
     st.markdown(
-        "[🔗 Browse trending models on HuggingFace →](https://huggingface.co/models?library=transformers&sort=trending)",
-        unsafe_allow_html=False,
+        "[🔗 Browse trending models on HuggingFace →](https://huggingface.co/models?library=transformers&sort=trending)"
     )
     model_name = st.text_input(
         "Model ID",
@@ -167,22 +192,6 @@ with st.sidebar:
     )
 
 
-# ── Secrets gate ─────────────────────────────────────────────────────────────
-hf_token = st.secrets.get("HF_TOKEN", "") or os.environ.get("HF_TOKEN", "")
-
-if not hf_token:
-    st.error(
-        "**HF_TOKEN is not set.**\n\n"
-        "You must add your HuggingFace token as a Streamlit secret before using this app:\n\n"
-        "1. Go to your app's **Settings → Secrets** in Streamlit Cloud, or create `.streamlit/secrets.toml` locally\n"
-        "2. Add the line:\n"
-        "```toml\nHF_TOKEN = \"hf_your_token_here\"\n```\n"
-        "3. Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)\n\n"
-        "Then restart the app.",
-        icon="🔑",
-    )
-    st.stop()
-
 # ── Title ─────────────────────────────────────────────────────────────────────
 short_name = model_name.split("/")[-1] if "/" in model_name else model_name
 st.markdown(
@@ -190,38 +199,40 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 # ── Load / cache the pipeline ─────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
-def load_pipeline(model_id: str, token: str | None):
+def load_pipeline(model_id: str):
+    """
+    Token auth is handled globally via hf_login() above.
+    We don't pass the token here to avoid cache-busting on every rerun.
+    """
     from transformers import pipeline as hf_pipeline
     import torch
 
-    kwargs = {
-        "task": "text-generation",
-        "model": model_id,
-        "device_map": "auto",
-        "torch_dtype": torch.float16 if torch.cuda.is_available() else torch.float32,
-    }
-    if token:
-        kwargs["token"] = token
-
-    return hf_pipeline(**kwargs)
+    return hf_pipeline(
+        task="text-generation",
+        model=model_id,
+        device_map="auto",
+        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+    )
 
 
-# Only reload when the model name actually changes
+# Bust the cache only when the model ID actually changes
 if st.session_state.get("loaded_model_name") != model_name:
     st.session_state.pop("loaded_model", None)
 
 if "loaded_model" not in st.session_state:
     with st.spinner(f"Loading **{short_name}** — this may take a minute on first run…"):
         try:
-            st.session_state.loaded_model = load_pipeline(model_name, hf_token)
+            st.session_state.loaded_model = load_pipeline(model_name)
             st.session_state.loaded_model_name = model_name
         except Exception as e:
             st.error(f"❌ Failed to load model: {e}")
             st.stop()
 
 pipe = st.session_state.loaded_model
+
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "messages" not in st.session_state:
@@ -239,7 +250,6 @@ if prompt := st.chat_input("Send a message…"):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Build message list including system prompt
     api_messages = [{"role": "system", "content": system_prompt}] + [
         {"role": m["role"], "content": m["content"]}
         for m in st.session_state.messages
@@ -258,15 +268,12 @@ if prompt := st.chat_input("Send a message…"):
                 do_sample=True,
             )
 
-            # Extract only the new assistant turn
             generated = result[0]["generated_text"]
 
             if isinstance(generated, list):
-                # Chat-template models return a list of message dicts
                 assistant_turns = [m for m in generated if m["role"] == "assistant"]
                 response = assistant_turns[-1]["content"].strip() if assistant_turns else str(generated)
             else:
-                # Some models return a plain string; strip the prompt
                 response = generated.strip()
 
             placeholder.markdown(response)
