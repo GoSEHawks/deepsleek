@@ -149,13 +149,13 @@ with st.sidebar:
     )
     model_name = st.text_input(
         "Model ID",
-        value="CohereLabs/tiny-aya-global",
+        value="microsoft/phi-2",
         placeholder="e.g. mistralai/Mistral-7B-Instruct-v0.2",
         label_visibility="collapsed",
         help="Paste any text-generation model ID from HuggingFace.",
     )
     if not model_name.strip():
-        model_name = "CohereLabs/tiny-aya-global"
+        model_name = "microsoft/phi-2"
     else:
         model_name = model_name.strip()
 
