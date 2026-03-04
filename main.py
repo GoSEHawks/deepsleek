@@ -4,7 +4,7 @@ from openai import OpenAI
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="DeepSleek Chat",
+    page_title="GPT Chat",
     page_icon="💬",
     layout="centered",
 )
@@ -14,7 +14,6 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
 
-/* ── Reset & base ── */
 html, body, [data-testid="stAppViewContainer"] {
     background: #0a0a0f !important;
     color: #e8e4dc !important;
@@ -24,13 +23,11 @@ html, body, [data-testid="stAppViewContainer"] {
 [data-testid="stHeader"] { background: transparent !important; }
 [data-testid="stToolbar"] { display: none; }
 
-/* ── Main container ── */
 .main .block-container {
     max-width: 760px !important;
     padding: 2rem 1.5rem 6rem !important;
 }
 
-/* ── Title ── */
 h1 {
     font-family: 'Syne', sans-serif !important;
     font-weight: 800 !important;
@@ -40,33 +37,6 @@ h1 {
     margin-bottom: 0.2rem !important;
 }
 
-/* ── Chat messages ── */
-[data-testid="stChatMessage"] {
-    background: transparent !important;
-    border: none !important;
-    padding: 0.5rem 0 !important;
-}
-
-/* User bubble */
-[data-testid="stChatMessage"][data-testid*="user"],
-div[data-testid="stChatMessageContent"]:has(~ div[aria-label="user avatar"]) {
-    background: transparent !important;
-}
-
-.stChatMessage {
-    gap: 0.75rem !important;
-}
-
-/* Avatar */
-[data-testid="stChatMessageAvatarUser"] > div,
-[data-testid="stChatMessageAvatarAssistant"] > div {
-    background: #1a1a24 !important;
-    border: 1px solid #2a2a38 !important;
-    border-radius: 6px !important;
-    font-size: 0.75rem !important;
-}
-
-/* Message content area */
 [data-testid="stChatMessageContent"] {
     background: #13131c !important;
     border: 1px solid #222230 !important;
@@ -77,7 +47,6 @@ div[data-testid="stChatMessageContent"]:has(~ div[aria-label="user avatar"]) {
     color: #ddd8ce !important;
 }
 
-/* ── Input bar ── */
 [data-testid="stChatInputContainer"] {
     background: #0a0a0f !important;
     border-top: 1px solid #1e1e2a !important;
@@ -91,26 +60,25 @@ div[data-testid="stChatMessageContent"]:has(~ div[aria-label="user avatar"]) {
     color: #e8e4dc !important;
     font-family: 'DM Mono', monospace !important;
     font-size: 0.87rem !important;
-    caret-color: #7b6ef6 !important;
+    caret-color: #4f9eff !important;
 }
 
 [data-testid="stChatInputContainer"] textarea:focus {
-    border-color: #7b6ef6 !important;
-    box-shadow: 0 0 0 2px rgba(123,110,246,0.15) !important;
+    border-color: #4f9eff !important;
+    box-shadow: 0 0 0 2px rgba(79,158,255,0.15) !important;
     outline: none !important;
 }
 
 [data-testid="stChatInputContainer"] button {
-    background: #7b6ef6 !important;
+    background: #4f9eff !important;
     border-radius: 8px !important;
     border: none !important;
 }
 
 [data-testid="stChatInputContainer"] button:hover {
-    background: #9585ff !important;
+    background: #70b3ff !important;
 }
 
-/* ── Sidebar ── */
 [data-testid="stSidebar"] {
     background: #0d0d15 !important;
     border-right: 1px solid #1e1e2a !important;
@@ -129,39 +97,29 @@ div[data-testid="stChatMessageContent"]:has(~ div[aria-label="user avatar"]) {
     font-family: 'DM Mono', monospace !important;
     font-size: 0.82rem !important;
     width: 100% !important;
-    text-align: left !important;
     transition: border-color 0.15s !important;
 }
 
 [data-testid="stSidebar"] button:hover {
-    border-color: #7b6ef6 !important;
+    border-color: #4f9eff !important;
     background: #1e1e2e !important;
 }
 
-/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #0a0a0f; }
 ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 4px; }
 
-/* ── Accent tag ── */
 .model-tag {
     display: inline-block;
     background: #1a1a26;
-    border: 1px solid #7b6ef6;
-    color: #7b6ef6;
+    border: 1px solid #4f9eff;
+    color: #4f9eff;
     font-family: 'DM Mono', monospace;
     font-size: 0.72rem;
     padding: 2px 8px;
     border-radius: 4px;
     margin-left: 0.5rem;
     vertical-align: middle;
-}
-
-/* ── Thinking spinner ── */
-.thinking {
-    color: #555566;
-    font-size: 0.8rem;
-    font-style: italic;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -172,16 +130,16 @@ with st.sidebar:
     st.markdown("## ⚙ Settings")
 
     api_key = st.text_input(
-        "DeepSeek API Key",
+        "OpenAI API Key",
         type="password",
-        value=os.environ.get("DEEPSEEK_API_KEY", ""),
+        value=os.environ.get("OPENAI_API_KEY", ""),
         placeholder="sk-...",
-        help="Get your key at platform.deepseek.com",
+        help="Get your key at platform.openai.com/account/api-keys",
     )
 
     model = st.selectbox(
         "Model",
-        ["deepseek-chat", "deepseek-reasoner"],
+        ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
         index=0,
     )
 
@@ -201,16 +159,21 @@ with st.sidebar:
 
     st.markdown(
         "<div style='font-size:0.72rem;color:#444455;margin-top:1rem;'>"
-        "Powered by DeepSeek API</div>",
+        "Powered by OpenAI API</div>",
         unsafe_allow_html=True,
     )
 
 
 # ── Title ─────────────────────────────────────────────────────────────────────
 st.markdown(
-    f'<h1>DeepSleek Chat <span class="model-tag">{model}</span></h1>',
+    f'<h1>GPT Chat <span class="model-tag">{model}</span></h1>',
     unsafe_allow_html=True,
 )
+
+# ── Gate on API key ───────────────────────────────────────────────────────────
+if not api_key:
+    st.info("Enter your OpenAI API key in the sidebar to get started.", icon="🗝️")
+    st.stop()
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "messages" not in st.session_state:
@@ -224,28 +187,18 @@ for msg in st.session_state.messages:
 # ── Chat input ────────────────────────────────────────────────────────────────
 if prompt := st.chat_input("Send a message…"):
 
-    if not api_key:
-        st.error("⚠ Please enter your DeepSeek API key in the sidebar.")
-        st.stop()
-
-    # Show user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Build message list for the API
+    client = OpenAI(api_key=api_key)
+
     api_messages = [{"role": "system", "content": system_prompt}] + [
         {"role": m["role"], "content": m["content"]}
         for m in st.session_state.messages
     ]
 
-    # Stream assistant response
-    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-
     with st.chat_message("assistant"):
-        placeholder = st.empty()
-        full_response = ""
-
         try:
             stream = client.chat.completions.create(
                 model=model,
@@ -253,18 +206,9 @@ if prompt := st.chat_input("Send a message…"):
                 temperature=temperature,
                 stream=True,
             )
-
-            for chunk in stream:
-                delta = chunk.choices[0].delta.content or ""
-                full_response += delta
-                placeholder.markdown(full_response + "▌")
-
-            placeholder.markdown(full_response)
-
+            response = st.write_stream(stream)
         except Exception as e:
-            full_response = f"❌ Error: {e}"
-            placeholder.markdown(full_response)
+            response = f"❌ Error: {e}"
+            st.markdown(response)
 
-    st.session_state.messages.append(
-        {"role": "assistant", "content": full_response}
-    )
+    st.session_state.messages.append({"role": "assistant", "content": response})
