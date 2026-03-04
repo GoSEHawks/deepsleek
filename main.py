@@ -120,8 +120,6 @@ h1 {
 with st.sidebar:
     st.markdown("## ⚙ Settings")
 
-    hf_token = st.text_input(os.environ.get("HF_TOKEN", ""))
-
     model_name = st.selectbox(
         "Model",
         [
@@ -172,6 +170,22 @@ with st.sidebar:
     )
 
 
+# ── Secrets gate ─────────────────────────────────────────────────────────────
+hf_token = st.secrets.get("HF_TOKEN", "") or os.environ.get("HF_TOKEN", "")
+
+if not hf_token:
+    st.error(
+        "**HF_TOKEN is not set.**\n\n"
+        "You must add your HuggingFace token as a Streamlit secret before using this app:\n\n"
+        "1. Go to your app's **Settings → Secrets** in Streamlit Cloud, or create `.streamlit/secrets.toml` locally\n"
+        "2. Add the line:\n"
+        "```toml\nHF_TOKEN = \"hf_your_token_here\"\n```\n"
+        "3. Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)\n\n"
+        "Then restart the app.",
+        icon="🔑",
+    )
+    st.stop()
+
 # ── Title ─────────────────────────────────────────────────────────────────────
 short_name = model_name.split("/")[-1] if "/" in model_name else model_name
 st.markdown(
@@ -204,7 +218,7 @@ if st.session_state.get("loaded_model_name") != model_name:
 if "loaded_model" not in st.session_state:
     with st.spinner(f"Loading **{short_name}** — this may take a minute on first run…"):
         try:
-            st.session_state.loaded_model = load_pipeline(model_name, hf_token or None)
+            st.session_state.loaded_model = load_pipeline(model_name, hf_token)
             st.session_state.loaded_model_name = model_name
         except Exception as e:
             st.error(f"❌ Failed to load model: {e}")
