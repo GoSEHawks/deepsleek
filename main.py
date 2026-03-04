@@ -199,19 +199,8 @@ st.markdown(
 # ── Load / cache the pipeline ─────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_pipeline(model_id: str):
-    """
-    Token auth is handled globally via hf_login() above.
-    We don't pass the token here to avoid cache-busting on every rerun.
-    """
-    from transformers import pipeline as hf_pipeline
-    import torch
-
-    return hf_pipeline(
-        task="text-generation",
-        model=model_id,
-        device_map="auto",
-        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-    )
+    from transformers import pipeline
+    return pipeline("text-generation", model=model_id)
 
 
 # Bust the cache only when the model ID actually changes
