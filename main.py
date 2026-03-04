@@ -149,13 +149,13 @@ with st.sidebar:
     )
     model_name = st.text_input(
         "Model ID",
-        value="microsoft/phi-2",
+        value="openai-community/gpt2",
         placeholder="e.g. mistralai/Mistral-7B-Instruct-v0.2",
         label_visibility="collapsed",
         help="Paste any text-generation model ID from HuggingFace.",
     )
     if not model_name.strip():
-        model_name = "microsoft/phi-2"
+        model_name = "openai-community/gpt2"
     else:
         model_name = model_name.strip()
 
