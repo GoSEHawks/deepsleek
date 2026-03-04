@@ -120,13 +120,7 @@ h1 {
 with st.sidebar:
     st.markdown("## ⚙ Settings")
 
-    hf_token = st.text_input(
-        "HuggingFace Token (optional)",
-        type="password",
-        value=os.environ.get("HF_TOKEN", ""),
-        placeholder="hf_...",
-        help="Required for gated models like Llama 2. Get yours at huggingface.co/settings/tokens",
-    )
+    hf_token = st.text_input(os.environ.get("HF_TOKEN", ""))
 
     model_name = st.selectbox(
         "Model",
