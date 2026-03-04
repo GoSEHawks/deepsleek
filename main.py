@@ -120,25 +120,22 @@ h1 {
 with st.sidebar:
     st.markdown("## ⚙ Settings")
 
-    model_name = st.selectbox(
-        "Model",
-        [
-            "mistralai/Mistral-7B-Instruct-v0.1",
-            "mistralai/Mistral-7B-Instruct-v0.2",
-            "meta-llama/Llama-2-7b-chat-hf",
-            "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-            "microsoft/DialoGPT-medium",
-            "HuggingFaceH4/zephyr-7b-beta",
-        ],
-        index=3,  # default to TinyLlama — fastest to load
+    st.markdown("**Model ID**")
+    st.markdown(
+        "[🔗 Browse trending models on HuggingFace →](https://huggingface.co/models?library=transformers&sort=trending)",
+        unsafe_allow_html=False,
     )
-
-    custom_model = st.text_input(
-        "Or enter a custom model ID",
-        placeholder="org/model-name",
+    model_name = st.text_input(
+        "Model ID",
+        value="HuggingFaceH4/zephyr-7b-beta",
+        placeholder="e.g. mistralai/Mistral-7B-Instruct-v0.2",
+        label_visibility="collapsed",
+        help="Paste any text-generation model ID from HuggingFace.",
     )
-    if custom_model.strip():
-        model_name = custom_model.strip()
+    if not model_name.strip():
+        model_name = "HuggingFaceH4/zephyr-7b-beta"
+    else:
+        model_name = model_name.strip()
 
     system_prompt = st.text_area(
         "System prompt",
@@ -165,7 +162,7 @@ with st.sidebar:
     st.markdown(
         "<div class='hf-note'>Models are downloaded & cached on first load.<br>"
         "Large models (7B+) require a GPU and ~14 GB RAM.<br>"
-        "TinyLlama is great for CPU testing.</div>",
+        "Only <code>text-generation</code> models with a chat template will work correctly.</div>",
         unsafe_allow_html=True,
     )
 
