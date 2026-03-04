@@ -132,11 +132,10 @@ if "HF_TOKEN" not in st.secrets:
 
 hf_token = st.secrets["HF_TOKEN"]
 
-# Log in to HuggingFace Hub globally so ALL downloads are authenticated.
-# This is the most reliable way — it sets the token at the huggingface_hub
-# level rather than relying on it being threaded through every API call.
-from huggingface_hub import login as hf_login
-hf_login(token=hf_token, add_to_git_credential=False)
+# Set the token as an environment variable — this is the safest approach.
+# It avoids calling whoami/login (which throws on expired tokens) while still
+# authenticating every HuggingFace download automatically.
+os.environ["HF_TOKEN"] = hf_token
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -225,7 +224,25 @@ if "loaded_model" not in st.session_state:
             st.session_state.loaded_model = load_pipeline(model_name)
             st.session_state.loaded_model_name = model_name
         except Exception as e:
-            st.error(f"❌ Failed to load model: {e}")
+            err = str(e)
+            if "401" in err or "Unauthorized" in err or "expired" in err or "invalid" in err.lower():
+                st.error(
+                    "**HF_TOKEN is expired or invalid.**\n\n"
+                    "Please update your token:\n"
+                    "1. Generate a new token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)\n"
+                    "2. Update `HF_TOKEN` in your Streamlit **Settings → Secrets**\n"
+                    "3. Restart the app.",
+                    icon="🔑",
+                )
+            elif "403" in err or "gated" in err.lower() or "access" in err.lower():
+                st.error(
+                    f"**Access denied for `{model_name}`.**\n\n"
+                    "This may be a gated model that requires you to accept its terms first.\n"
+                    "Visit the model page on HuggingFace, accept the terms, then try again.",
+                    icon="🚫",
+                )
+            else:
+                st.error(f"❌ Failed to load `{model_name}`:\n\n{e}")
             st.stop()
 
 pipe = st.session_state.loaded_model
