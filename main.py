@@ -1,10 +1,10 @@
 # Please install OpenAI SDK first: `pip3 install openai`
 import os
-import openai
 import streamlit as st
+from openai import OpenAI
 
 st.title("DeepSleek Chat")
-client = openai.OpenAI(api_key=os.environ.get('DEEPSEEK_API_KEY'), base_url="https://api.deepseek.com")
+client = OpenAI(api_key=os.environ.get('DEEPSEEK_API_KEY'), base_url="https://api.deepseek.com")
 
 response = client.chat.completions.create(
     model="deepseek-chat",
