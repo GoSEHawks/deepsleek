@@ -1,6 +1,7 @@
 import os
 import streamlit as st
 import transformers
+import torch
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -155,7 +156,7 @@ with st.sidebar:
         help="Paste any text-generation model ID from HuggingFace.",
     )
     if not model_name.strip():
-        model_name = "openai-community/gpt2"
+        model_name = "HuggingFaceH4/zephyr-7b-beta"
     else:
         model_name = model_name.strip()
 
@@ -200,8 +201,12 @@ st.markdown(
 # ── Load / cache the pipeline ─────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_pipeline(model_id: str):
-    import transformers
-    return transformers.pipeline("text-generation", model=model_id)
+    return transformers.pipeline(
+        task="text-generation",
+        model=model_id,
+        dtype=torch.float16,
+        device=0 if torch.cuda.is_available() else -1,
+    )
 
 
 # Bust the cache only when the model ID actually changes
