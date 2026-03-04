@@ -1,11 +1,11 @@
 import os
 import streamlit as st
-from openai import OpenAI
+from threading import Thread
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="GPT Chat",
-    page_icon="💬",
+    page_title="HF Chat",
+    page_icon="🤗",
     layout="centered",
 )
 
@@ -19,15 +19,12 @@ html, body, [data-testid="stAppViewContainer"] {
     color: #e8e4dc !important;
     font-family: 'DM Mono', monospace !important;
 }
-
 [data-testid="stHeader"] { background: transparent !important; }
 [data-testid="stToolbar"] { display: none; }
-
 .main .block-container {
     max-width: 760px !important;
     padding: 2rem 1.5rem 6rem !important;
 }
-
 h1 {
     font-family: 'Syne', sans-serif !important;
     font-weight: 800 !important;
@@ -36,7 +33,6 @@ h1 {
     color: #e8e4dc !important;
     margin-bottom: 0.2rem !important;
 }
-
 [data-testid="stChatMessageContent"] {
     background: #13131c !important;
     border: 1px solid #222230 !important;
@@ -46,13 +42,11 @@ h1 {
     line-height: 1.65 !important;
     color: #ddd8ce !important;
 }
-
 [data-testid="stChatInputContainer"] {
     background: #0a0a0f !important;
     border-top: 1px solid #1e1e2a !important;
     padding: 0.75rem 0 1rem !important;
 }
-
 [data-testid="stChatInputContainer"] textarea {
     background: #13131c !important;
     border: 1px solid #2a2a3a !important;
@@ -60,35 +54,29 @@ h1 {
     color: #e8e4dc !important;
     font-family: 'DM Mono', monospace !important;
     font-size: 0.87rem !important;
-    caret-color: #4f9eff !important;
+    caret-color: #f97316 !important;
 }
-
 [data-testid="stChatInputContainer"] textarea:focus {
-    border-color: #4f9eff !important;
-    box-shadow: 0 0 0 2px rgba(79,158,255,0.15) !important;
+    border-color: #f97316 !important;
+    box-shadow: 0 0 0 2px rgba(249,115,22,0.15) !important;
     outline: none !important;
 }
-
 [data-testid="stChatInputContainer"] button {
-    background: #4f9eff !important;
+    background: #f97316 !important;
     border-radius: 8px !important;
     border: none !important;
 }
-
 [data-testid="stChatInputContainer"] button:hover {
-    background: #70b3ff !important;
+    background: #fb923c !important;
 }
-
 [data-testid="stSidebar"] {
     background: #0d0d15 !important;
     border-right: 1px solid #1e1e2a !important;
 }
-
-[data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+[data-testid="stSidebar"] h2 {
     font-family: 'Syne', sans-serif !important;
     color: #e8e4dc !important;
 }
-
 [data-testid="stSidebar"] button {
     background: #1a1a26 !important;
     color: #e8e4dc !important;
@@ -99,27 +87,30 @@ h1 {
     width: 100% !important;
     transition: border-color 0.15s !important;
 }
-
 [data-testid="stSidebar"] button:hover {
-    border-color: #4f9eff !important;
+    border-color: #f97316 !important;
     background: #1e1e2e !important;
 }
-
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #0a0a0f; }
 ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 4px; }
-
 .model-tag {
     display: inline-block;
     background: #1a1a26;
-    border: 1px solid #4f9eff;
-    color: #4f9eff;
+    border: 1px solid #f97316;
+    color: #f97316;
     font-family: 'DM Mono', monospace;
     font-size: 0.72rem;
     padding: 2px 8px;
     border-radius: 4px;
     margin-left: 0.5rem;
     vertical-align: middle;
+}
+.hf-note {
+    font-size: 0.78rem;
+    color: #555566;
+    line-height: 1.5;
+    margin-top: 0.5rem;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -129,19 +120,33 @@ h1 {
 with st.sidebar:
     st.markdown("## ⚙ Settings")
 
-    api_key = st.text_input(
-        "OpenAI API Key",
+    hf_token = st.text_input(
+        "HuggingFace Token (optional)",
         type="password",
-        value=os.environ.get("OPENAI_API_KEY", ""),
-        placeholder="sk-...",
-        help="Get your key at platform.openai.com/account/api-keys",
+        value=os.environ.get("HF_TOKEN", ""),
+        placeholder="hf_...",
+        help="Required for gated models like Llama 2. Get yours at huggingface.co/settings/tokens",
     )
 
-    model = st.selectbox(
+    model_name = st.selectbox(
         "Model",
-        ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
-        index=0,
+        [
+            "mistralai/Mistral-7B-Instruct-v0.1",
+            "mistralai/Mistral-7B-Instruct-v0.2",
+            "meta-llama/Llama-2-7b-chat-hf",
+            "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+            "microsoft/DialoGPT-medium",
+            "HuggingFaceH4/zephyr-7b-beta",
+        ],
+        index=3,  # default to TinyLlama — fastest to load
     )
+
+    custom_model = st.text_input(
+        "Or enter a custom model ID",
+        placeholder="org/model-name",
+    )
+    if custom_model.strip():
+        model_name = custom_model.strip()
 
     system_prompt = st.text_area(
         "System prompt",
@@ -149,31 +154,69 @@ with st.sidebar:
         height=100,
     )
 
-    temperature = st.slider("Temperature", 0.0, 2.0, 1.0, 0.05)
+    max_new_tokens = st.slider("Max new tokens", 64, 1024, 256, 32)
+    temperature = st.slider("Temperature", 0.01, 2.0, 0.7, 0.05)
+    top_p = st.slider("Top-p", 0.1, 1.0, 0.95, 0.05)
 
     st.divider()
 
     if st.button("🗑 Clear conversation"):
         st.session_state.messages = []
+        st.session_state.pop("loaded_model", None)
+        st.rerun()
+
+    if st.button("🔄 Reload model"):
+        st.session_state.pop("loaded_model", None)
+        st.session_state.pop("loaded_model_name", None)
         st.rerun()
 
     st.markdown(
-        "<div style='font-size:0.72rem;color:#444455;margin-top:1rem;'>"
-        "Powered by OpenAI API</div>",
+        "<div class='hf-note'>Models are downloaded & cached on first load.<br>"
+        "Large models (7B+) require a GPU and ~14 GB RAM.<br>"
+        "TinyLlama is great for CPU testing.</div>",
         unsafe_allow_html=True,
     )
 
 
 # ── Title ─────────────────────────────────────────────────────────────────────
+short_name = model_name.split("/")[-1] if "/" in model_name else model_name
 st.markdown(
-    f'<h1>GPT Chat <span class="model-tag">{model}</span></h1>',
+    f'<h1>HF Chat <span class="model-tag">{short_name}</span></h1>',
     unsafe_allow_html=True,
 )
 
-# ── Gate on API key ───────────────────────────────────────────────────────────
-if not api_key:
-    st.info("Enter your OpenAI API key in the sidebar to get started.", icon="🗝️")
-    st.stop()
+# ── Load / cache the pipeline ─────────────────────────────────────────────────
+@st.cache_resource(show_spinner=False)
+def load_pipeline(model_id: str, token: str | None):
+    from transformers import pipeline as hf_pipeline
+    import torch
+
+    kwargs = {
+        "task": "text-generation",
+        "model": model_id,
+        "device_map": "auto",
+        "torch_dtype": torch.float16 if torch.cuda.is_available() else torch.float32,
+    }
+    if token:
+        kwargs["token"] = token
+
+    return hf_pipeline(**kwargs)
+
+
+# Only reload when the model name actually changes
+if st.session_state.get("loaded_model_name") != model_name:
+    st.session_state.pop("loaded_model", None)
+
+if "loaded_model" not in st.session_state:
+    with st.spinner(f"Loading **{short_name}** — this may take a minute on first run…"):
+        try:
+            st.session_state.loaded_model = load_pipeline(model_name, hf_token or None)
+            st.session_state.loaded_model_name = model_name
+        except Exception as e:
+            st.error(f"❌ Failed to load model: {e}")
+            st.stop()
+
+pipe = st.session_state.loaded_model
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "messages" not in st.session_state:
@@ -191,24 +234,40 @@ if prompt := st.chat_input("Send a message…"):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    client = OpenAI(api_key=api_key)
-
+    # Build message list including system prompt
     api_messages = [{"role": "system", "content": system_prompt}] + [
         {"role": m["role"], "content": m["content"]}
         for m in st.session_state.messages
     ]
 
     with st.chat_message("assistant"):
+        placeholder = st.empty()
+        placeholder.markdown("_thinking…_")
+
         try:
-            stream = client.chat.completions.create(
-                model=model,
-                messages=api_messages,
+            result = pipe(
+                api_messages,
+                max_new_tokens=max_new_tokens,
                 temperature=temperature,
-                stream=True,
+                top_p=top_p,
+                do_sample=True,
             )
-            response = st.write_stream(stream)
+
+            # Extract only the new assistant turn
+            generated = result[0]["generated_text"]
+
+            if isinstance(generated, list):
+                # Chat-template models return a list of message dicts
+                assistant_turns = [m for m in generated if m["role"] == "assistant"]
+                response = assistant_turns[-1]["content"].strip() if assistant_turns else str(generated)
+            else:
+                # Some models return a plain string; strip the prompt
+                response = generated.strip()
+
+            placeholder.markdown(response)
+
         except Exception as e:
-            response = f"❌ Error: {e}"
-            st.markdown(response)
+            response = f"❌ Error during generation: {e}"
+            placeholder.markdown(response)
 
     st.session_state.messages.append({"role": "assistant", "content": response})
