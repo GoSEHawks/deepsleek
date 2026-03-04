@@ -269,8 +269,14 @@ if prompt := st.chat_input("Send a message…"):
         placeholder.markdown("_thinking…_")
 
         try:
-            # Try chat template first (Zephyr, Mistral-Instruct, Llama-chat etc.)
-            try:
+            # Detect whether the model supports chat templates
+            has_chat_template = (
+                hasattr(pipe.tokenizer, "chat_template")
+                and pipe.tokenizer.chat_template is not None
+            )
+
+            if has_chat_template:
+                # Instruction-tuned model (Zephyr, Mistral-Instruct, Llama-chat etc.)
                 result = pipe(
                     api_messages,
                     max_new_tokens=max_new_tokens,
@@ -284,22 +290,8 @@ if prompt := st.chat_input("Send a message…"):
                     response = assistant_turns[-1]["content"].strip() if assistant_turns else str(generated)
                 else:
                     response = generated.strip()
-
-            except Exception as template_err:
-                if "chat_template" not in str(template_err):
-                    raise template_err
-
-                # Fallback: model has no chat template — flatten to plain text prompt
-                prompt = ""
-                for m in api_messages:
-                    if m["role"] == "system":
-                        prompt += f"### System:\n{m['content']}\n\n"
-                    elif m["role"] == "user":
-                        prompt += f"### User:\n{m['content']}\n\n"
-                    elif m["role"] == "assistant":
-                        prompt += f"### Assistant:\n{m['content']}\n\n"
-                prompt += "### Assistant:\n"
-
+            else:
+                # Raw completion model (GPT-2 etc.) — just send the user's message as-is
                 result = pipe(
                     prompt,
                     max_new_tokens=max_new_tokens,
@@ -307,7 +299,7 @@ if prompt := st.chat_input("Send a message…"):
                     top_p=top_p,
                     do_sample=True,
                 )
-                # Strip the echoed prompt — return only the new generated text
+                # Strip the echoed input prompt, return only generated continuation
                 response = result[0]["generated_text"][len(prompt):].strip()
 
             placeholder.markdown(response)
