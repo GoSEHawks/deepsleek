@@ -264,21 +264,46 @@ if prompt := st.chat_input("Send a message…"):
         placeholder.markdown("_thinking…_")
 
         try:
-            result = pipe(
-                api_messages,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                top_p=top_p,
-                do_sample=True,
-            )
+            # Try chat template first (Zephyr, Mistral-Instruct, Llama-chat etc.)
+            try:
+                result = pipe(
+                    api_messages,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    do_sample=True,
+                )
+                generated = result[0]["generated_text"]
+                if isinstance(generated, list):
+                    assistant_turns = [m for m in generated if m["role"] == "assistant"]
+                    response = assistant_turns[-1]["content"].strip() if assistant_turns else str(generated)
+                else:
+                    response = generated.strip()
 
-            generated = result[0]["generated_text"]
+            except Exception as template_err:
+                if "chat_template" not in str(template_err):
+                    raise template_err
 
-            if isinstance(generated, list):
-                assistant_turns = [m for m in generated if m["role"] == "assistant"]
-                response = assistant_turns[-1]["content"].strip() if assistant_turns else str(generated)
-            else:
-                response = generated.strip()
+                # Fallback: model has no chat template — flatten to plain text prompt
+                prompt = ""
+                for m in api_messages:
+                    if m["role"] == "system":
+                        prompt += f"### System:\n{m['content']}\n\n"
+                    elif m["role"] == "user":
+                        prompt += f"### User:\n{m['content']}\n\n"
+                    elif m["role"] == "assistant":
+                        prompt += f"### Assistant:\n{m['content']}\n\n"
+                prompt += "### Assistant:\n"
+
+                result = pipe(
+                    prompt,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    do_sample=True,
+                )
+                # Strip the echoed prompt — return only the new generated text
+                response = result[0]["generated_text"][len(prompt):].strip()
 
             placeholder.markdown(response)
 
